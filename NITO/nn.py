@@ -43,7 +43,7 @@ class BC_Encoder(nn.Module):
 
         return output
     
-class C_Encoder(nn.module):
+class C_Encoder(nn.Module):
     def __init__(self, mlp_layers):
         super(C_Encoder, self).__init__()
         self.mlp = nn.ModuleList()

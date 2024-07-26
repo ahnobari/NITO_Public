@@ -13,15 +13,10 @@ from scipy.spatial.distance import pdist, squareform, cdist
 from scipy.spatial import KDTree
 
 class NITO_Dataset:
-    def __init__(self, topologies, BCs, Cs, vfs, constraints_x, constraints_y, loads, shapes, n_samples = 1024, noisy=False):
+    def __init__(self, topologies, BCs, Cs, shapes, n_samples = 1024, noisy=False):
         
         self.topologies = topologies
-        self.vfs = vfs
-        self.constraints_x = constraints_x
-        self.constraints_y = constraints_y
-        self.loads = loads
         self.shapes = shapes
-        self.SDF = SDF
         self.n_samples = n_samples
         self.noisy = noisy
         
@@ -94,16 +89,16 @@ class NITO_Dataset:
             Cs.append([])
         
         for idx in idxs:
-            coords,l,bc,c = self.load(idx, mode=mode)
-            coords.append(coords)
+            coord,l,bc,c = self.load(idx, mode=mode)
+            coords.append(coord)
             labels.append(l)
-            mult = coords.shape[0]
+            mult = coord.shape[0]
 
             for i in range(self.n_BC):
                 BCs[i].append(bc[i])
             
             for i in range(self.n_C):
-                Cs[i].append(c)
+                Cs[i].append(c[i])
         
         coords = np.concatenate(coords,0)
         labels = np.concatenate(labels,0)
@@ -117,7 +112,7 @@ class NITO_Dataset:
 
         for i in range(len(idxs)):
             for j in range(self.n_BC):
-                B_BC[j].append(BCs[i][j].shape[0])
+                B_BC[j].append(BCs[j][i].shape[0])
         
         for i in range(self.n_BC):
             B_BC[i] = np.repeat(np.arange(len(idxs)),B_BC[i])
@@ -126,9 +121,11 @@ class NITO_Dataset:
         for i in range(self.n_BC):
             BCs[i] = np.concatenate(BCs[i],0)
             BCs[i] = torch.tensor(BCs[i]).float().to(device)
-        
+
         for i in range(self.n_C):
-            Cs[i] = np.concatenate(Cs[i],0)
+            Cs[i] = np.array(Cs[i])
+            if len(Cs[i].shape) == 1:
+                Cs[i] = Cs[i].reshape(-1,1)
             Cs[i] = torch.tensor(Cs[i]).float().to(device)
         
         inputs = [coords, mult, BCs, B_BC, Cs]

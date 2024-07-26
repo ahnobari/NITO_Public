@@ -1,9 +1,10 @@
-import torch
+from .nn import BC_Encoder, C_Encoder, FourierConditionalNeuralField
 
+import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .nn import BC_Encoder, C_Encoder, FourierConditionalNeuralField
+
 
 
 class NITO(nn.Module):
