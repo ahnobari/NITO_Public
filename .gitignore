@@ -1,0 +1,9 @@
+# ipynb and pychache
+*.ipynb_checkpoints
+__pycache__
+
+# experimental Code
+*_exp_*
+
+# data
+Data/*.npy
