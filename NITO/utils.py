@@ -28,9 +28,17 @@ class NITO_Dataset:
         
         self.max_size = 0
         
-        for top in self.topologies:
+        self.max_BC_size = np.zeros(len(self.BCs),dtype=int)
+        
+        for i in range(len(self.topologies)):
+            top = self.topologies[i]
+            
             if top.shape[0] > self.max_size:
                 self.max_size = top.shape[0]
+            
+            for j in range(self.n_BC):
+                if self.BCs[j][i].shape[0] > self.max_BC_size[j]:
+                    self.max_BC_size[j] = self.BCs[j][i].shape[0]
         
     def __len__(self):
         return self.topologies.shape[0]
@@ -80,13 +88,17 @@ class NITO_Dataset:
         coords = []
         labels = []
         BCs = []
+        BCs_mask = []
         Cs = []
         
         for i in range(self.n_BC):
             BCs.append([])
+            BCs_mask.append([])
         
         for i in range(self.n_C):
             Cs.append([])
+        
+        max_bc_size = np.zeros(self.n_BC,dtype=int)
         
         for idx in idxs:
             coord,l,bc,c = self.load(idx, mode=mode)
@@ -95,10 +107,24 @@ class NITO_Dataset:
             mult = coord.shape[0]
 
             for i in range(self.n_BC):
-                BCs[i].append(bc[i])
+                mask = np.zeros([self.max_BC_size[i],1],dtype=bool)
+                mask[:bc[i].shape[0]] = 1
+                bc_ = np.pad(bc[i],((0,self.max_BC_size[i]-bc[i].shape[0]),(0,0)))
+                BCs[i].append(bc_)
+                BCs_mask[i].append(mask)
+                
+                # if bc[i].shape[0] > max_bc_size[i]:
+                #     max_bc_size[i] = bc[i].shape[0]
+                
             
             for i in range(self.n_C):
                 Cs[i].append(c[i])
+        
+        # for i in range(self.n_BC):
+        #     BCs[i] = np.array(BCs[i])
+        #     BCs_mask[i] = np.array(BCs_mask[i])
+        #     BCs[i] = BCs[i][:,0:max_bc_size[i],:]
+        #     BCs_mask[i] = BCs_mask[i][:,0:max_bc_size[i],:]
         
         coords = np.concatenate(coords,0)
         labels = np.concatenate(labels,0)
@@ -106,21 +132,24 @@ class NITO_Dataset:
         coords = torch.tensor(coords).float().to(device)
         labels = torch.tensor(labels).float().to(device)
 
-        B_BC = []
-        for i in range(self.n_BC):
-            B_BC.append([])
+        # B_BC = []
+        # for i in range(self.n_BC):
+        #     B_BC.append([])
 
-        for i in range(len(idxs)):
-            for j in range(self.n_BC):
-                B_BC[j].append(BCs[j][i].shape[0])
+        # for i in range(len(idxs)):
+        #     for j in range(self.n_BC):
+        #         B_BC[j].append(BCs[j][i].shape[0])
         
-        for i in range(self.n_BC):
-            B_BC[i] = np.repeat(np.arange(len(idxs)),B_BC[i])
-            B_BC[i] = torch.tensor(B_BC[i]).long().to(device)
+        # for i in range(self.n_BC):
+        #     B_BC[i] = np.repeat(np.arange(len(idxs)),B_BC[i])
+        #     B_BC[i] = torch.tensor(B_BC[i]).long().to(device)
         
         for i in range(self.n_BC):
             BCs[i] = np.concatenate(BCs[i],0)
             BCs[i] = torch.tensor(BCs[i]).float().to(device)
+            
+            BCs_mask[i] = np.concatenate(BCs_mask[i],0)
+            BCs_mask[i] = torch.tensor(BCs_mask[i]).bool().to(device)
 
         for i in range(self.n_C):
             Cs[i] = np.array(Cs[i])
@@ -128,6 +157,6 @@ class NITO_Dataset:
                 Cs[i] = Cs[i].reshape(-1,1)
             Cs[i] = torch.tensor(Cs[i]).float().to(device)
         
-        inputs = [coords, mult, BCs, B_BC, Cs]
+        inputs = [coords, mult, BCs, BCs_mask, Cs, idxs.shape[0]]
         
         return inputs, labels

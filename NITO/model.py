@@ -5,8 +5,6 @@ from torch import nn
 from torch.nn import functional as F
 
 
-
-
 class NITO(nn.Module):
     def __init__(self, output_channels = 1,
                        input_channels = 2,
@@ -56,11 +54,11 @@ class NITO(nn.Module):
 
 
     def forward(self, inputs):
-        coords, mult, BCs, BC_Batches, Cs = inputs
+        coords, mult, BCs, BC_mask, Cs, batch_size = inputs
         
         BC_emb = []
         for i in range(len(BCs)):
-            BC_emb.append(self.BC_Networks[i](BCs[i],BC_Batches[i]))
+            BC_emb.append(self.BC_Networks[i](BCs[i],BC_mask[i],batch_size))
         
         BC_emb = torch.cat(BC_emb,-1)
         

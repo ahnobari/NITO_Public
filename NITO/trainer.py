@@ -57,6 +57,8 @@ class Trainer:
             self.current_epoch = 0
             self.reset_optimizer()
 
+        self.model.compile()
+        
         steps_per_epoch = int(np.ceil(len(data_idx)/batch_size))
         
         for epoch in range(epochs):

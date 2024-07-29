@@ -14,7 +14,7 @@ class BC_Encoder(nn.Module):
             if i < len(mlp_layers) - 2:
                 self.layer_norms.append(nn.LayerNorm(mlp_layers[i+1]))
 
-    def forward(self, positions, batch_index):
+    def forward(self, positions, mask, batch_size):
         # Apply MLP with Layer Normalization and ReLU to positions
         x = positions
         for i, layer in enumerate(self.mlp):
@@ -24,22 +24,32 @@ class BC_Encoder(nn.Module):
                 x = F.relu(x)
 
         # Enhanced pooling - mean, max, and min pooling
-        batch_size = int(batch_index.max().item() + 1)
-        pooled = []
-        for index in range(batch_size):
-            mask = (batch_index == index).squeeze()
-            batch_x = x[mask]
+        x = x.reshape(batch_size, -1, x.shape[-1])
+        mask = mask.reshape(batch_size, -1, 1)
+        
+        mean_pool = (x * mask).sum(dim=1) / mask.sum(dim=1)
+        mean_pool = mean_pool.squeeze()
+        max_pool = (x * mask + ~mask * x.min()).max(dim=1)[0].squeeze()
+        min_pool = (x * mask + ~mask * x.max()).min(dim=1)[0].squeeze()
+        
+        output = torch.cat((mean_pool, max_pool, min_pool), dim=1)
+        
+        # batch_size = int(batch_index.max().item() + 1)
+        # pooled = []
+        # for index in range(batch_size):
+        #     mask = (batch_index == index).squeeze()
+        #     batch_x = x[mask]
 
-            mean_pool = batch_x.mean(dim=0).squeeze()
-            max_pool = batch_x.max(dim=0)[0].squeeze()
-            min_pool = batch_x.min(dim=0)[0].squeeze()
+        #     mean_pool = batch_x.mean(dim=0).squeeze()
+        #     max_pool = batch_x.max(dim=0)[0].squeeze()
+        #     min_pool = batch_x.min(dim=0)[0].squeeze()
 
-            # Concatenate pooled features
-            pooled_features = torch.cat((mean_pool, max_pool, min_pool), dim=0)
-            pooled.append(pooled_features)
+        #     # Concatenate pooled features
+        #     pooled_features = torch.cat((mean_pool, max_pool, min_pool), dim=0)
+        #     pooled.append(pooled_features)
 
-        # Stack pooled outputs for each set in the batch
-        output = torch.stack(pooled)
+        # # Stack pooled outputs for each set in the batch
+        # output = torch.stack(pooled)
 
         return output
     
