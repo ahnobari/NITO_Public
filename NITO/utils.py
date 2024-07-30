@@ -157,6 +157,6 @@ class NITO_Dataset:
                 Cs[i] = Cs[i].reshape(-1,1)
             Cs[i] = torch.tensor(Cs[i]).float().to(device)
         
-        inputs = [coords, mult, BCs, BCs_mask, Cs, idxs.shape[0]]
+        inputs = [coords, mult, BCs, BCs_mask, Cs, self.max_BC_size]
         
         return inputs, labels

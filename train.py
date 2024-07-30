@@ -19,6 +19,8 @@ parser.add_argument('--batch_size', type=int, default=32, help='batch size. Defa
 parser.add_argument('--samples', type=int, default=1024, help='number of points sampled per topology. Default: 1024')
 parser.add_argument('--epochs', type=int, default=100, help='number of epochs. Default: 100')
 parser.add_argument('--lr', type=float, default=1e-4, help='learning rate. Default: 1e-4')
+parser.add_argument('--multi_gpu', action='store_true', help='Data parallel training. Default: False')
+parser.add_argument('--mixed_precision', action='store_true', help='Mixed precision training. Default: False')
 
 # model arguments
 parser.add_argument('--BC_n_layers', type=int, default=4, help='number of layers in BC encoder. Default: 4')
@@ -81,7 +83,9 @@ else:
     # create trainer
     trainer = Trainer(model,
                     lr=args.lr,
-                    schedule_max_steps=args.epochs)
+                    schedule_max_steps=args.epochs,
+                    multi_gpu=args.multi_gpu,
+                    mixed_precision=args.mixed_precision)
 
     # save initial model
     with open(os.path.join(args.checkpoint_dir, f'{args.name}_0.NITO'), 'wb') as f:

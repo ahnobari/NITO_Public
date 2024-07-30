@@ -8,12 +8,21 @@ from tqdm import tqdm, trange
 
 class Trainer:
     def __init__(self, model, lr = 1e-4, weight_decay=1e-4, cosine_schedule = True, lr_final=1e-5,
-                 schedule_max_steps = 100, SDF=False, Multi_Class=False, nabla_coef = 0.1, device=None):
+                 schedule_max_steps = 100, SDF=False, Multi_Class=False, nabla_coef = 0.1, device=None, multi_gpu=False, mixed_precision = True):
         
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             
         self.model = model.to(device)
+
+        self.multi_gpu = multi_gpu
+        self.mixed_precision = mixed_precision
+
+        if self.multi_gpu:
+            if type(self.multi_gpu) is list:
+                self.model = nn.DataParallel(self.model, device_ids = multi_gpu)
+            else:
+                self.model = nn.DataParallel(self.model)
         
         self.lr = lr
         self.weight_decay = weight_decay
@@ -35,13 +44,13 @@ class Trainer:
         
         if self.SDF:
             self.loss_fn = torch.nn.MSELoss()
-            self.activation = lambda x: x
+            self.activation = torch.nn.Identity()
         elif self.Multi_Class:
             self.loss_fn = torch.nn.CrossEntropyLoss()
             self.activation = torch.nn.Softmax(dim=1)
         else:
-            self.loss_fn = torch.nn.BCELoss()
-            self.activation = torch.sigmoid
+            self.loss_fn = torch.nn.BCEWithLogitsLoss()
+            self.activation = torch.nn.Identity()
             
     def reset_optimizer(self):
         self.optimizer = torch.optim.AdamW(list(self.model_input.parameters()) + list(self.model_base.parameters()), lr = self.lr, weight_decay=self.weight_decay)
@@ -58,6 +67,9 @@ class Trainer:
             self.reset_optimizer()
 
         self.model.compile()
+
+        if self.mixed_precision:
+            scaler = torch.cuda.amp.GradScaler()
         
         steps_per_epoch = int(np.ceil(len(data_idx)/batch_size))
         
@@ -74,24 +86,36 @@ class Trainer:
             for i in prog:
                 self.optimizer.zero_grad()
                 inputs, labels = loader_fn(data_idx[shuffle_idx[i*batch_size:(i+1)*batch_size]], self.device)
-                
-                pred_labels = self.activation(self.model(inputs, **kwargs))
-                loss = self.loss_fn(pred_labels, labels)
+
+                if self.mixed_precision:
+                    with torch.cuda.amp.autocast():
+                        pred_labels = self.activation(self.model(inputs, **kwargs))
+                        loss = self.loss_fn(pred_labels, labels)
+                else:
+                    pred_labels = self.activation(self.model(inputs, **kwargs))
+                    loss = self.loss_fn(pred_labels, labels)
                 
                 if self.SDF:
                     loss_del = loss * 0.0
                     loss = loss + loss_del * self.nabla_coef
-                
-                loss.backward()
+                    
+                if self.mixed_precision:
+                    scaler.scale(loss).backward()
+                else:
+                    loss.backward()
                 
                 #gradient clipping
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 20.0)
+                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 20.0)
                 
                 # skip if loss is nan
-                if torch.isnan(loss) or torch.isinf(loss):
-                    continue
+                # if torch.isnan(loss) or torch.isinf(loss):
+                #     continue
 
-                self.optimizer.step()
+                if self.mixed_precision:
+                    scaler.step(self.optimizer)
+                    scaler.update()
+                else:
+                    self.optimizer.step()
                 
                 epoch_loss += loss.item()
                 

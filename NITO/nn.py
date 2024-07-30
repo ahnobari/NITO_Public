@@ -14,7 +14,7 @@ class BC_Encoder(nn.Module):
             if i < len(mlp_layers) - 2:
                 self.layer_norms.append(nn.LayerNorm(mlp_layers[i+1]))
 
-    def forward(self, positions, mask, batch_size):
+    def forward(self, positions, mask, bc_size):
         # Apply MLP with Layer Normalization and ReLU to positions
         x = positions
         for i, layer in enumerate(self.mlp):
@@ -24,8 +24,8 @@ class BC_Encoder(nn.Module):
                 x = F.relu(x)
 
         # Enhanced pooling - mean, max, and min pooling
-        x = x.reshape(batch_size, -1, x.shape[-1])
-        mask = mask.reshape(batch_size, -1, 1)
+        x = x.reshape(-1, bc_size, x.shape[-1])
+        mask = mask.reshape(-1, bc_size, 1)
         
         mean_pool = (x * mask).sum(dim=1) / mask.sum(dim=1)
         mean_pool = mean_pool.squeeze()
