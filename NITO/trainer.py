@@ -68,6 +68,9 @@ class Trainer:
 
         self.model.compile(fullgraph=True)
 
+        if self.multi_gpu and batch_size % len(self.model.device_ids) != 0:
+            raise ValueError("Batch size should be divisible by number of GPUs otherwise DDP will fail to split the batch evenly")
+               
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
         
