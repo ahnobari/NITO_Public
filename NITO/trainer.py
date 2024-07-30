@@ -66,7 +66,7 @@ class Trainer:
             self.current_epoch = 0
             self.reset_optimizer()
 
-        self.model.compile()
+        self.model.compile(fullgraph=True)
 
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
@@ -84,6 +84,10 @@ class Trainer:
             shuffle_idx = np.random.permutation(len(data_idx))
             
             for i in prog:
+                if self.multi_gpu:
+                    #skip last batch if it is smaller than batch_size for multi-gpu(DDP)
+                    if shuffle_idx[i*batch_size:(i+1)*batch_size].shape[0] < batch_size:
+                        continue
                 self.optimizer.zero_grad()
                 inputs, labels = loader_fn(data_idx[shuffle_idx[i*batch_size:(i+1)*batch_size]], self.device)
 
