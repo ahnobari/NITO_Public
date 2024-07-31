@@ -66,10 +66,10 @@ class Trainer:
             self.current_epoch = 0
             self.reset_optimizer()
 
-        self.model.compile(fullgraph=True)
+        self.model.compile()
 
-        if self.multi_gpu and batch_size % len(self.model.device_ids) != 0:
-            raise ValueError("Batch size should be divisible by number of GPUs otherwise DDP will fail to split the batch evenly")
+#        if self.multi_gpu and batch_size % (torch.cuda.device_count()) != 0:
+#            raise ValueError("Batch size should be divisible by number of GPUs otherwise DDP will fail to split the batch evenly")
                
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
@@ -117,7 +117,7 @@ class Trainer:
                 # skip if loss is nan
                 # if torch.isnan(loss) or torch.isinf(loss):
                 #     continue
-
+                
                 if self.mixed_precision:
                     scaler.step(self.optimizer)
                     scaler.update()
