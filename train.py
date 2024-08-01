@@ -21,6 +21,7 @@ parser.add_argument('--epochs', type=int, default=100, help='number of epochs. D
 parser.add_argument('--lr', type=float, default=1e-4, help='learning rate. Default: 1e-4')
 parser.add_argument('--multi_gpu', action='store_true', help='Data parallel training. Default: False')
 parser.add_argument('--mixed_precision', action='store_true', help='Mixed precision training. Default: False')
+parser.add_argument('--DDP', action='store_true', help='Distributed data parallel training. Default: False')
 
 # model arguments
 parser.add_argument('--BC_n_layers', type=int, default=4, help='number of layers in BC encoder. Default: 4')
@@ -55,44 +56,50 @@ BCs = np.load(os.path.join(args.data, 'boundary_conditions.npy'), allow_pickle=T
 dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples)
 
 
-if args.checkpoint is not None:
-    with open(args.checkpoint, 'rb') as f:
-        trainer = pickle.load(f)
-    # parameter count
-    print('Model Parameters:', sum(p.numel() for p in trainer.model.parameters() if p.requires_grad))
+# if args.checkpoint is not None:
+#     with open(args.checkpoint, 'rb') as f:
+#         trainer = pickle.load(f)
+#     # parameter count
+#     print('Model Parameters:', sum(p.numel() for p in trainer.model.parameters() if p.requires_grad))
 
-else:
-    # create model
-    model = NITO(BCs = [4,4],
-                BC_n_layers = [args.BC_n_layers,args.BC_n_layers],
-                BC_hidden_size = [args.BC_hidden_size,args.BC_hidden_size], 
-                BC_emb_size=[args.BC_emb_size,args.BC_emb_size], 
-                Cs = [1,2],
-                C_n_layers = [args.C_n_layers,args.C_n_layers],
-                C_hidden_size = [args.C_hidden_size,args.C_hidden_size],
-                C_mapping_size = [args.C_mapping_size,args.C_mapping_size],
-                Field_n_layers=args.Field_n_layers, 
-                Field_hidden_size=args.Field_hidden_size, 
-                Fourier_size=args.Fourier_size, 
-                omega = args.omega,
-                freq_scale= args.freq_scale)
+# else:
+# create model
+model = NITO(BCs = [4,4],
+            BC_n_layers = [args.BC_n_layers,args.BC_n_layers],
+            BC_hidden_size = [args.BC_hidden_size,args.BC_hidden_size], 
+            BC_emb_size=[args.BC_emb_size,args.BC_emb_size], 
+            Cs = [1,2],
+            C_n_layers = [args.C_n_layers,args.C_n_layers],
+            C_hidden_size = [args.C_hidden_size,args.C_hidden_size],
+            C_mapping_size = [args.C_mapping_size,args.C_mapping_size],
+            Field_n_layers=args.Field_n_layers, 
+            Field_hidden_size=args.Field_hidden_size, 
+            Fourier_size=args.Fourier_size, 
+            omega = args.omega,
+            freq_scale= args.freq_scale)
 
-    # parameter count
-    print('Model Parameters:', sum(p.numel() for p in model.parameters() if p.requires_grad))
+# parameter count
+print('Model Parameters:', sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    # create trainer
-    trainer = Trainer(model,
-                    lr=args.lr,
-                    schedule_max_steps=args.epochs,
-                    multi_gpu=args.multi_gpu,
-                    mixed_precision=args.mixed_precision)
+# create trainer
+trainer = Trainer(model,
+                lr=args.lr,
+                schedule_max_steps=args.epochs,
+                multi_gpu=args.multi_gpu,
+                mixed_precision=args.mixed_precision,
+                DDP_train = args.DDP,
+                checkpoint_path=args.checkpoint)
 
-    # save initial model
-    with open(os.path.join(args.checkpoint_dir, f'{args.name}_0.NITO'), 'wb') as f:
-        pickle.dump(trainer, f)
+trainer.save_checkpoint(os.path.join(args.checkpoint_dir, f'checkpoint_epoch_{trainer.current_epoch}.pth'))
 
-for i in range(args.epochs):
-    trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=1)
-    if (i+1) % args.checkpoint_freq == 0:
-        with open(os.path.join(args.checkpoint_dir, f'{args.name}_{i+1}.NITO'), 'wb') as f:
-            pickle.dump(trainer, f)
+trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=args.epochs, checkpoint_dir=args.checkpoint_dir, checkpoint_interval=args.checkpoint_freq)             
+
+#     # # save initial model
+#     # with open(os.path.join(args.checkpoint_dir, f'{args.name}_0.NITO'), 'wb') as f:
+#     #     pickle.dump(trainer, f)
+
+# for i in range(args.epochs):
+#     trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=1)
+#     if (i+1) % args.checkpoint_freq == 0:
+#         with open(os.path.join(args.checkpoint_dir, f'{args.name}_{i+1}.NITO'), 'wb') as f:
+#             pickle.dump(trainer, f)
