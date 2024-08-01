@@ -38,6 +38,9 @@ parser.add_argument('--freq_scale', type=float, default=10.0, help='frequency sc
 
 args = parser.parse_args()
 
+if args.DDP and "WORLD_SIZE" not in os.environ:
+    raise ValueError("Error: DDP flag is set, but script is not launched with torchrun. Please use: torchrun --nproc_per_node=NUM_GPUS train.py --DDP [other args]")
+
 # make checkpoint directory if it does not exist
 if not os.path.exists(args.checkpoint_dir):
     os.makedirs(args.checkpoint_dir)
@@ -55,14 +58,6 @@ BCs = np.load(os.path.join(args.data, 'boundary_conditions.npy'), allow_pickle=T
 # create dataset
 dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples)
 
-
-# if args.checkpoint is not None:
-#     with open(args.checkpoint, 'rb') as f:
-#         trainer = pickle.load(f)
-#     # parameter count
-#     print('Model Parameters:', sum(p.numel() for p in trainer.model.parameters() if p.requires_grad))
-
-# else:
 # create model
 model = NITO(BCs = [4,4],
             BC_n_layers = [args.BC_n_layers,args.BC_n_layers],
@@ -78,9 +73,6 @@ model = NITO(BCs = [4,4],
             omega = args.omega,
             freq_scale= args.freq_scale)
 
-# parameter count
-print('Model Parameters:', sum(p.numel() for p in model.parameters() if p.requires_grad))
-
 # create trainer
 trainer = Trainer(model,
                 lr=args.lr,
@@ -90,16 +82,10 @@ trainer = Trainer(model,
                 DDP_train = args.DDP,
                 checkpoint_path=args.checkpoint)
 
+# parameter count
+if trainer.is_main_process():
+    print('Model Parameters:', sum(p.numel() for p in model.parameters() if p.requires_grad))
+
 trainer.save_checkpoint(os.path.join(args.checkpoint_dir, f'checkpoint_epoch_{trainer.current_epoch}.pth'))
 
 trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=args.epochs, checkpoint_dir=args.checkpoint_dir, checkpoint_interval=args.checkpoint_freq)             
-
-#     # # save initial model
-#     # with open(os.path.join(args.checkpoint_dir, f'{args.name}_0.NITO'), 'wb') as f:
-#     #     pickle.dump(trainer, f)
-
-# for i in range(args.epochs):
-#     trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=1)
-#     if (i+1) % args.checkpoint_freq == 0:
-#         with open(os.path.join(args.checkpoint_dir, f'{args.name}_{i+1}.NITO'), 'wb') as f:
-#             pickle.dump(trainer, f)
