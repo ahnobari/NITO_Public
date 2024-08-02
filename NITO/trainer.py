@@ -120,12 +120,17 @@ class Trainer:
             self.model.compile()
         
         if self.mixed_precision:
-            scaler = torch.cuda.amp.GradScaler()
+            # scaler = torch.cuda.amp.GradScaler()
+            scaler = torch.amp.autocast('cuda')
         
         steps_per_epoch = int(np.ceil(len(data_idx) / batch_size))
         
         os.makedirs(checkpoint_dir, exist_ok=True)
         
+        # split the dataset in case of DDP
+        if self.DDP:
+            data_idx = np.array_split(data_idx, self.world_size)[self.rank]
+
         for epoch in range(epochs):
             if verbose and self.is_main_process():
                 prog = tqdm(range(steps_per_epoch))
