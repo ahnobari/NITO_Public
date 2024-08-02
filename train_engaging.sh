@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH -n 200
+#SBATCH -n 100
 #SBATCH -p pi_faez
 #SBATCH --gres=gpu:4
-#SBATCH --mem=2000000
+#SBATCH --mem=1000000
 #SBATCH -t 4-00:00
 #SBATCH -o log.out
 
@@ -17,6 +17,7 @@ if [ -z ${NITO_batch_size+x} ]; then export NITO_batch_size=4; else echo "NITO_b
 module load cuda/12.4.0-x86_64
 
 export PATH=/home/ahnobari/miniforge3/bin:${PATH}
+export OMP_NUM_THREADS=25
 source activate DDP
 
 torchrun --nproc_per_node=4 train.py --multi_gpu --mixed_precision \
