@@ -27,7 +27,8 @@ torchrun --nproc_per_node=4 train.py --multi_gpu --mixed_precision \
     --C_mapping_size $NITO_C_mapping_size \
     --samples $NITO_samples \
     --batch_size $NITO_batch_size \
-    --DDP
+    --DDP \
+    --compile
 # torchrun --nproc_per_node=4 train.py --multi_gpu --mixed_precision --Field_hidden_size 26500 --Field_n_layers 8 --BC_emb_size 170 --C_mapping_size 512 --samples 64 --batch_size 4 --DDP
 
 # python train.py --multi_gpu --mixed_precision --Field_hidden_size 25000 --Field_n_layers 8 --BC_emb_size 128 --C_mapping_size 512 --samples 512 --batch_size 16

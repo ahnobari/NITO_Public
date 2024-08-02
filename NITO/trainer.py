@@ -24,7 +24,7 @@ class Trainer:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         self.device = device
-        self.model = model.to(device)
+        self.model = model
 
         if hasattr(self.model, 'compile') and Compile:
             self.model.compile()
@@ -35,6 +35,8 @@ class Trainer:
             self.model = nn.DataParallel(self.model, device_ids=multi_gpu)
         elif self.multi_gpu:
             self.model = nn.DataParallel(self.model)
+        else:
+            self.model = self.model.to(self.device)
         
         self.lr = lr
         self.weight_decay = weight_decay
@@ -80,7 +82,7 @@ class Trainer:
         dist.init_process_group(backend='nccl')
         torch.cuda.set_device(self.rank)
         
-        self.model = self.model.to(self.device)
+        self.model = self.model.to(self.rank)
         
         self.model = DDP(self.model, device_ids=[self.rank])
 
