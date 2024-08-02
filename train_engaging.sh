@@ -12,7 +12,7 @@ if [ -z ${NITO_Field_n_layers+x} ]; then export NITO_Field_n_layers=8; else echo
 if [ -z ${NITO_BC_emb_size+x} ]; then export NITO_BC_emb_size=170; else echo "NITO_BC_emb_size is set to '$NITO_BC_emb_size'"; fi
 if [ -z ${NITO_C_mapping_size+x} ]; then export NITO_C_mapping_size=512; else echo "NITO_C_mapping_size is set to '$NITO_C_mapping_size'"; fi
 if [ -z ${NITO_samples+x} ]; then export NITO_samples=64; else echo "NITO_samples is set to '$NITO_samples'"; fi
-if [ -z ${NITO_batch_size+x} ]; then export NITO_batch_size=4; else echo "NITO_batch_size is set to '$NITO_batch_size'"; fi
+if [ -z ${NITO_batch_size+x} ]; then export NITO_batch_size=2; else echo "NITO_batch_size is set to '$NITO_batch_size'"; fi
 
 module load cuda/12.4.0-x86_64
 
