@@ -22,6 +22,7 @@ parser.add_argument('--lr', type=float, default=1e-4, help='learning rate. Defau
 parser.add_argument('--multi_gpu', action='store_true', help='Data parallel training. Default: False')
 parser.add_argument('--mixed_precision', action='store_true', help='Mixed precision training. Default: False')
 parser.add_argument('--DDP', action='store_true', help='Distributed data parallel training. Default: False')
+parser.add_argument('--compile', action='store_true', help='Whether to compile the model before training. Recommended to set to true. Default: False')
 
 # model arguments
 parser.add_argument('--BC_n_layers', type=int, default=4, help='number of layers in BC encoder. Default: 4')
@@ -55,8 +56,13 @@ loads = np.load(os.path.join(args.data, 'loads.npy'), allow_pickle=True)
 vfs = np.load(os.path.join(args.data, 'vfs.npy'), allow_pickle=True)
 BCs = np.load(os.path.join(args.data, 'boundary_conditions.npy'), allow_pickle=True)
 
+if (args.DDP and args.multi_gpu) or not args.multi_gpu:
+    consistent_batch = False
+else:
+    consistent_batch = True
+
 # create dataset
-dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples)
+dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
 
 # create model
 model = NITO(BCs = [4,4],
@@ -80,7 +86,8 @@ trainer = Trainer(model,
                 multi_gpu=args.multi_gpu,
                 mixed_precision=args.mixed_precision,
                 DDP_train = args.DDP,
-                checkpoint_path=args.checkpoint)
+                checkpoint_path=args.checkpoint,
+                Compile=args.compile)
 
 # parameter count
 if trainer.is_main_process():

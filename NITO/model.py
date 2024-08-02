@@ -54,11 +54,11 @@ class NITO(nn.Module):
 
 
     def forward(self, inputs):
-        coords, mult, BCs, BC_mask, Cs, bc_size = inputs
+        coords, mult, BCs, BC_mask, BCs_batch, Cs, bc_size = inputs
         
         BC_emb = []
         for i in range(len(BCs)):
-            BC_emb.append(self.BC_Networks[i](BCs[i],BC_mask[i],bc_size[i]))
+            BC_emb.append(self.BC_Networks[i](BCs[i],BC_mask[i], bc_size[i],BCs_batch[i]))
         
         BC_emb = torch.cat(BC_emb,-1)
         

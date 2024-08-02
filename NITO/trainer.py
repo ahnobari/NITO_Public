@@ -14,7 +14,7 @@ import os
 class Trainer:
     def __init__(self, model, lr=1e-4, weight_decay=1e-4, cosine_schedule=True, lr_final=1e-5,
                  schedule_max_steps=100, SDF=False, Multi_Class=False, nabla_coef=0.1, device=None, 
-                 multi_gpu=False, mixed_precision=True, DDP_train=True, checkpoint_path=None):
+                 multi_gpu=False, mixed_precision=True, DDP_train=True, Compile=True, checkpoint_path=None):
         
         self.multi_gpu = multi_gpu
         self.DDP = DDP_train if multi_gpu else False
@@ -26,7 +26,7 @@ class Trainer:
         self.device = device
         self.model = model.to(device)
 
-        if hasattr(self.model, 'compile'):
+        if hasattr(self.model, 'compile') and Compile:
             self.model.compile()
         
         if self.DDP:
@@ -118,9 +118,6 @@ class Trainer:
             self.model.train()
             self.current_epoch = 0
             self.reset_optimizer()
-
-        # if hasattr(self.model, 'compile'):
-        #     self.model.compile()
         
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()

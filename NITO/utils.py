@@ -13,12 +13,13 @@ from scipy.spatial.distance import pdist, squareform, cdist
 from scipy.spatial import KDTree
 
 class NITO_Dataset:
-    def __init__(self, topologies, BCs, Cs, shapes, n_samples = 1024, noisy=False):
+    def __init__(self, topologies, BCs, Cs, shapes, n_samples = 1024, noisy=False, consistent_batch=True):
         
         self.topologies = topologies
         self.shapes = shapes
         self.n_samples = n_samples
         self.noisy = noisy
+        self.consistent_batch = consistent_batch
         
         self.BCs = BCs
         self.Cs = Cs
@@ -89,16 +90,21 @@ class NITO_Dataset:
         labels = []
         BCs = []
         BCs_mask = []
+        BCs_batch = []
         Cs = []
+
         
         for i in range(self.n_BC):
             BCs.append([])
-            BCs_mask.append([])
+            if self.consistent_batch:
+                BCs_mask.append([])
+                BCs_batch.append(None)
+            else:
+                BCs_mask.append(None)
+                BCs_batch.append([])
         
         for i in range(self.n_C):
             Cs.append([])
-        
-        max_bc_size = np.zeros(self.n_BC,dtype=int)
         
         for idx in idxs:
             coord,l,bc,c = self.load(idx, mode=mode)
@@ -107,24 +113,17 @@ class NITO_Dataset:
             mult = coord.shape[0]
 
             for i in range(self.n_BC):
-                mask = np.zeros([self.max_BC_size[i],1],dtype=bool)
-                mask[:bc[i].shape[0]] = 1
-                bc_ = np.pad(bc[i],((0,self.max_BC_size[i]-bc[i].shape[0]),(0,0)))
-                BCs[i].append(bc_)
-                BCs_mask[i].append(mask)
-                
-                # if bc[i].shape[0] > max_bc_size[i]:
-                #     max_bc_size[i] = bc[i].shape[0]
-                
+                if self.consistent_batch:
+                    mask = np.zeros([self.max_BC_size[i],1],dtype=bool)
+                    mask[:bc[i].shape[0]] = 1
+                    bc_ = np.pad(bc[i],((0,self.max_BC_size[i]-bc[i].shape[0]),(0,0)))
+                    BCs[i].append(bc_)
+                    BCs_mask[i].append(mask)
+                else:
+                    BCs[i].append(bc[i])
             
             for i in range(self.n_C):
                 Cs[i].append(c[i])
-        
-        # for i in range(self.n_BC):
-        #     BCs[i] = np.array(BCs[i])
-        #     BCs_mask[i] = np.array(BCs_mask[i])
-        #     BCs[i] = BCs[i][:,0:max_bc_size[i],:]
-        #     BCs_mask[i] = BCs_mask[i][:,0:max_bc_size[i],:]
         
         coords = np.concatenate(coords,0)
         labels = np.concatenate(labels,0)
@@ -135,21 +134,22 @@ class NITO_Dataset:
         # B_BC = []
         # for i in range(self.n_BC):
         #     B_BC.append([])
-
-        # for i in range(len(idxs)):
-        #     for j in range(self.n_BC):
-        #         B_BC[j].append(BCs[j][i].shape[0])
-        
-        # for i in range(self.n_BC):
-        #     B_BC[i] = np.repeat(np.arange(len(idxs)),B_BC[i])
-        #     B_BC[i] = torch.tensor(B_BC[i]).long().to(device)
+        if not self.consistent_batch:
+            for i in range(len(idxs)):
+                for j in range(self.n_BC):
+                    BCs_batch[j].append(BCs[j][i].shape[0])
+            
+            for i in range(self.n_BC):
+                BCs_batch[i] = np.repeat(np.arange(len(idxs)),BCs_batch[i])
+                BCs_batch[i] = torch.tensor(BCs_batch[i]).long().to(device)
         
         for i in range(self.n_BC):
             BCs[i] = np.concatenate(BCs[i],0)
             BCs[i] = torch.tensor(BCs[i]).float().to(device)
             
-            BCs_mask[i] = np.concatenate(BCs_mask[i],0)
-            BCs_mask[i] = torch.tensor(BCs_mask[i]).bool().to(device)
+            if self.consistent_batch:
+                BCs_mask[i] = np.concatenate(BCs_mask[i],0)
+                BCs_mask[i] = torch.tensor(BCs_mask[i]).bool().to(device)
 
         for i in range(self.n_C):
             Cs[i] = np.array(Cs[i])
@@ -157,6 +157,6 @@ class NITO_Dataset:
                 Cs[i] = Cs[i].reshape(-1,1)
             Cs[i] = torch.tensor(Cs[i]).float().to(device)
         
-        inputs = [coords, mult, BCs, BCs_mask, Cs, self.max_BC_size]
+        inputs = [coords, mult, BCs, BCs_mask, BCs_batch, Cs, self.max_BC_size]
         
         return inputs, labels
