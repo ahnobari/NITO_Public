@@ -32,8 +32,10 @@ class Trainer:
         if self.DDP:
             self.setup_ddp()
         elif self.multi_gpu and type(self.multi_gpu) is list:
+            self.model = self.model.to(self.device)
             self.model = nn.DataParallel(self.model, device_ids=multi_gpu)
         elif self.multi_gpu:
+            self.model = self.model.to(self.device)
             self.model = nn.DataParallel(self.model)
         else:
             self.model = self.model.to(self.device)
@@ -69,6 +71,8 @@ class Trainer:
         
         if checkpoint_path:
             self.load_checkpoint(checkpoint_path)
+
+        torch.cuda.empty_cache()
 
     def setup_ddp(self):
         if 'MASTER_ADDR' not in os.environ:
@@ -124,6 +128,8 @@ class Trainer:
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
         
+        torch.cuda.empty_cache()
+
         # split data for DDP
         if self.DDP:
             data_idx = np.array_split(data_idx, self.world_size)[self.rank]
@@ -148,7 +154,9 @@ class Trainer:
                         continue
                 self.optimizer.zero_grad()
                 inputs, labels = loader_fn(data_idx[shuffle_idx[i*batch_size:(i+1)*batch_size]], self.device)
-
+                if i == 0:
+                    for l,inp in enumerate(inputs):
+                        print(f'Input {l+1} Shape: {inp.shape}')
                 if self.mixed_precision:
                     with torch.cuda.amp.autocast():
                         pred_labels = self.activation(self.model(inputs, **kwargs))
