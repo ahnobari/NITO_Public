@@ -154,10 +154,7 @@ class Trainer:
                         continue
                 self.optimizer.zero_grad()
                 inputs, labels = loader_fn(data_idx[shuffle_idx[i*batch_size:(i+1)*batch_size]], self.device)
-                if i == 0:
-                    for l,inp in enumerate(inputs):
-                        if hasattr(inp, 'shape'):
-                            print(f'Input {l+1} Shape: {inp.shape}')
+                
                 if self.mixed_precision:
                     with torch.cuda.amp.autocast():
                         pred_labels = self.activation(self.model(inputs, **kwargs))
