@@ -23,6 +23,7 @@ parser.add_argument('--multi_gpu', action='store_true', help='Data parallel trai
 parser.add_argument('--mixed_precision', action='store_true', help='Mixed precision training. Default: False')
 parser.add_argument('--DDP', action='store_true', help='Distributed data parallel training. Default: False')
 parser.add_argument('--compile', action='store_true', help='Whether to compile the model before training. Recommended to set to true. Default: False')
+parser.add_argument('--supress_warnings', action='store_true', help='Supress warnings. Default: False')
 
 # model arguments
 parser.add_argument('--BC_n_layers', type=int, default=4, help='number of layers in BC encoder. Default: 4')
@@ -38,6 +39,10 @@ parser.add_argument('--omega', type=float, default=1.0, help='omega value. Defau
 parser.add_argument('--freq_scale', type=float, default=10.0, help='frequency scale. Default: 10.0')
 
 args = parser.parse_args()
+
+if args.supress_warnings:
+    import warnings
+    warnings.filterwarnings("ignore")
 
 if args.DDP and "WORLD_SIZE" not in os.environ:
     raise ValueError("Error: DDP flag is set, but script is not launched with torchrun. Please use: torchrun --nproc_per_node=NUM_GPUS train.py --DDP [other args]")
