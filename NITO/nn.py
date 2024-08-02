@@ -28,9 +28,9 @@ class BC_Encoder(nn.Module):
         mask = mask.reshape(-1, bc_size, 1)
         
         mean_pool = (x * mask).sum(dim=1) / mask.sum(dim=1)
-        mean_pool = mean_pool.squeeze(dim=[1,2])
-        max_pool = (x * mask + ~mask * x.min()).max(dim=1)[0].squeeze(dim=[1,2])
-        min_pool = (x * mask + ~mask * x.max()).min(dim=1)[0].squeeze(dim=[1,2])
+        # mean_pool = mean_pool.squeeze(dim=[1,2])
+        max_pool = (x * mask + ~mask * x.min()).max(dim=1)[0]
+        min_pool = (x * mask + ~mask * x.max()).min(dim=1)[0]
         
         output = torch.cat((mean_pool, max_pool, min_pool), dim=1)
         
