@@ -25,6 +25,9 @@ class Trainer:
         
         self.device = device
         self.model = model.to(device)
+
+        if hasattr(self.model, 'compile'):
+            self.model.compile()
         
         if self.DDP:
             self.setup_ddp()
@@ -116,8 +119,8 @@ class Trainer:
             self.current_epoch = 0
             self.reset_optimizer()
 
-        if hasattr(self.model, 'compile'):
-            self.model.compile()
+        # if hasattr(self.model, 'compile'):
+        #     self.model.compile()
         
         if self.mixed_precision:
             scaler = torch.cuda.amp.GradScaler()
