@@ -27,6 +27,7 @@ parser.add_argument('--DDP', action='store_true', help='Distributed data paralle
 parser.add_argument('--compile', action='store_true', help='Whether to compile the model before training. Recommended to set to true. Default: False')
 parser.add_argument('--supress_warnings', action='store_true', help='Supress warnings. Default: False')
 parser.add_argument('--profile', action='store_true', help='Profile the model. NOTE: This will do only 5 steps and no checkpointing. Purely for memory profiling. Default: False')
+parser.add_argument('--Optimizer', type=str, default='AdamW', help='Optimizer to use. Default: AdamW, Options: Adam, AdamW, SGD, Adam8, Adafactor')
 
 # model arguments
 parser.add_argument('--BC_n_layers', type=int, default=4, help='number of layers in BC encoder. Default: 4')
@@ -96,7 +97,8 @@ trainer = Trainer(model,
                 DDP_train = args.DDP,
                 checkpoint_path=args.checkpoint,
                 Compile=args.compile,
-                enable_profiling=args.profile)
+                enable_profiling=args.profile,
+                optimizer=args.Optimizer)
 
 # parameter count
 if trainer.is_main_process():
@@ -112,7 +114,7 @@ else:
         context = f'rank_{rank}'
     else:
         context = 'single_gpu'
-        
+
     prof = torch.profiler.profile(
         on_trace_ready=torch.profiler.tensorboard_trace_handler(f'./log/Training_Profile_{uuid.uuid4()}_{context}'),
         record_shapes=True,

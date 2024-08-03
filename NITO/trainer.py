@@ -9,6 +9,8 @@ from tqdm import tqdm, trange
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from torch.profiler import profile, record_function, ProfilerActivity
+import bitsandbytes as bnb
+import torch_optimizer as topt
 
 import os
 
@@ -16,12 +18,13 @@ class Trainer:
     def __init__(self, model, lr=1e-4, weight_decay=1e-4, cosine_schedule=True, lr_final=1e-5,
                  schedule_max_steps=100, SDF=False, Multi_Class=False, nabla_coef=0.1, device=None, 
                  multi_gpu=False, mixed_precision=True, DDP_train=True, Compile=True, checkpoint_path=None,
-                 enable_profiling=False):
+                 enable_profiling=False, optimizer='AdamW'):
         
         self.multi_gpu = multi_gpu
         self.DDP = DDP_train if multi_gpu else False
         self.mixed_precision = mixed_precision
         self.enable_profiling = enable_profiling
+        self.optimizer = optimizer
         
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -52,9 +55,27 @@ class Trainer:
         
         if self.enable_profiling:
             with record_function("Optimizer setup"):
-                self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+                if optimizer == 'Adam':
+                    self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+                elif optimizer == 'AdamW':
+                    self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+                elif optimizer == 'SGD':
+                    self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+                elif optimizer == 'Adam8':
+                    self.optimizer = bnb.optim.Adam8(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+                elif optimizer == 'Adafactor':
+                    self.optimizer = topt.Adafactor(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         else:
-            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+            if optimizer == 'Adam':
+                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+            elif optimizer == 'AdamW':
+                self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+            elif optimizer == 'SGD':
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+            elif optimizer == 'Adam8':
+                self.optimizer = bnb.optim.Adam8(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+            elif optimizer == 'Adafactor':
+                self.optimizer = topt.Adafactor(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         
         self.cosine_schedule = cosine_schedule
         self.lr_final = lr_final
@@ -147,6 +168,23 @@ class Trainer:
         self.current_epoch = checkpoint['current_epoch']
         if self.scheduler and 'scheduler_state_dict' in checkpoint:
             self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+
+    def reset_optimizer(self):
+        if self.optimizer == 'Adam':
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        elif self.optimizer == 'AdamW':
+            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        elif self.optimizer == 'SGD':
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        elif self.optimizer == 'Adam8':
+            self.optimizer = bnb.optim.Adam8(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        elif self.optimizer == 'Adafactor':
+            self.optimizer = topt.Adafactor(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+        
+        if self.cosine_schedule:
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.schedule_max_steps, eta_min=self.lr_final)
+        else:
+            self.scheduler = None
 
     def train(self, loader_fn, data_idx, batch_size, epochs=100, continue_loop=True, verbose=True, checkpoint_interval=10, checkpoint_dir='Checkpoints', **kwargs):
         if not continue_loop:

@@ -9,3 +9,6 @@ __pycache__
 Data/*.npy
 Checkpoints/*
 *.out
+*.html
+log/*
+/log
