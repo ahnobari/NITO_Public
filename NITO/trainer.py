@@ -195,7 +195,7 @@ class Trainer:
 
             if (self.current_epoch-1) % checkpoint_interval == 0:
                 pass
-            else:
+            elif self.is_main_process():
                 os.remove(os.path.join(checkpoint_dir, f'checkpoint_epoch_{self.current_epoch-1}.pth'))
 
         if self.DDP:
