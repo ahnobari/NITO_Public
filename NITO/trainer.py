@@ -37,8 +37,7 @@ class Trainer:
                 with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
                     with record_function("DDP setup"):
                         self.setup_ddp()
-                print(f'Rank: {self.rank}, World Size: {self.world_size}')
-                print(prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=10))
+                print(f'Rank: {self.rank}, World Size: {self.world_size}', prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=10))
             else:
                 self.setup_ddp()
         elif self.multi_gpu and type(self.multi_gpu) is list:
@@ -238,8 +237,9 @@ class Trainer:
 
         shuffle_idx = np.random.permutation(len(data_idx))
         
-        with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
-            for i in range(5):  # Profile only 5 steps
+        
+        for i in range(5):  # Profile only 5 steps
+            with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
                 with record_function(f"Training step {i} Data Loader"):
                     self.optimizer.zero_grad()
                     inputs, labels = loader_fn(data_idx[shuffle_idx[i*batch_size:(i+1)*batch_size]], self.device)
@@ -269,4 +269,8 @@ class Trainer:
         if self.DDP:
             print(f'Rank: {self.rank}, World Size: {self.world_size}')
         print(prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=50))
-        prof.export_chrome_trace("trainer_profile_trace.json")
+
+        if self.DDP:
+            prof.export_chrome_trace(f"trainer_profile_trace_rank_{self.rank}.json")
+        else:
+            prof.export_chrome_trace("trainer_profile_trace.json")
