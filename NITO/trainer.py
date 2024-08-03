@@ -15,7 +15,7 @@ class Trainer:
     def __init__(self, model, lr=1e-4, weight_decay=1e-4, cosine_schedule=True, lr_final=1e-5,
                  schedule_max_steps=100, SDF=False, Multi_Class=False, nabla_coef=0.1, device=None, 
                  multi_gpu=False, mixed_precision=True, DDP_train=True, Compile=True, checkpoint_path=None,
-                 enable_profiling=False, enable_profiling=False):
+                 enable_profiling=False):
         
         self.multi_gpu = multi_gpu
         self.DDP = DDP_train if multi_gpu else False

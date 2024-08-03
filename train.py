@@ -93,7 +93,8 @@ trainer = Trainer(model,
                 mixed_precision=args.mixed_precision,
                 DDP_train = args.DDP,
                 checkpoint_path=args.checkpoint,
-                Compile=args.compile)
+                Compile=args.compile,
+                enable_profiling=args.profile)
 
 # parameter count
 if trainer.is_main_process():
