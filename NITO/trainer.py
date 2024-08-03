@@ -73,7 +73,7 @@ class Trainer:
             elif optimizer == 'SGD':
                 self.optimizer = torch.optim.SGD(self.model.parameters(), lr=lr, weight_decay=weight_decay)
             elif optimizer == 'Adam8':
-                self.optimizer = bnb.optim.Adam8(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+                self.optimizer = bnb.optim.Adam8bit(self.model.parameters(), lr=lr, weight_decay=weight_decay)
             elif optimizer == 'Adafactor':
                 self.optimizer = topt.Adafactor(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         
