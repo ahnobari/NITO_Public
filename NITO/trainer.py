@@ -14,11 +14,13 @@ import os
 class Trainer:
     def __init__(self, model, lr=1e-4, weight_decay=1e-4, cosine_schedule=True, lr_final=1e-5,
                  schedule_max_steps=100, SDF=False, Multi_Class=False, nabla_coef=0.1, device=None, 
-                 multi_gpu=False, mixed_precision=True, DDP_train=True, Compile=True, checkpoint_path=None):
+                 multi_gpu=False, mixed_precision=True, DDP_train=True, Compile=True, checkpoint_path=None,
+                 enable_profiling=False, enable_profiling=False):
         
         self.multi_gpu = multi_gpu
         self.DDP = DDP_train if multi_gpu else False
         self.mixed_precision = mixed_precision
+        self.enable_profiling = enable_profiling
         
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,7 +32,14 @@ class Trainer:
             self.model.compile()
         
         if self.DDP:
-            self.setup_ddp()
+            if self.enable_profiling:
+                with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
+                    with record_function("DDP setup"):
+                        self.setup_ddp()
+                print(f'Rank: {self.rank}, World Size: {self.world_size}')
+                print(prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=10))
+            else:
+                self.setup_ddp()
         elif self.multi_gpu and type(self.multi_gpu) is list:
             self.model = self.model.to(self.device)
             self.model = nn.DataParallel(self.model, device_ids=multi_gpu)
@@ -203,3 +212,60 @@ class Trainer:
 
     def __del__(self):
         self.cleanup_ddp()
+
+    def profile(self, loader_fn, data_idx, batch_size, **kwargs):
+        if not self.enable_profiling:
+            if self.is_main_process():
+                print("Profiling is not enabled. Set enable_profiling=True in the Trainer initialization to use this feature.")
+            return
+
+        self.model.train()
+
+        if self.mixed_precision:
+            with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
+                with record_function("Mixed Precision setup"):
+                    scaler = torch.cuda.amp.GradScaler()
+            if self.DDP:
+                print(f'Rank: {self.rank}, World Size: {self.world_size}')
+            
+            print(prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=10))
+        
+        torch.cuda.empty_cache()
+
+        if self.DDP:
+            data_idx = np.array_split(data_idx, self.world_size)[self.rank]
+
+        shuffle_idx = np.random.permutation(len(data_idx))
+        
+        with profile(activities=[ProfilerActivity.CUDA], profile_memory=True, record_shapes=True) as prof:
+            for i in range(5):  # Profile only 5 steps
+                with record_function(f"Training step {i} Data Loader"):
+                    self.optimizer.zero_grad()
+                    inputs, labels = loader_fn(data_idx[shuffle_idx[i*batch_size:(i+1)*batch_size]], self.device)
+                
+                with record_function(f"Training step {i} Foward"):
+                    if self.mixed_precision:
+                        with torch.cuda.amp.autocast():
+                            pred_labels = self.activation(self.model(inputs, **kwargs))
+                            loss = self.loss_fn(pred_labels, labels)
+                    else:
+                        pred_labels = self.activation(self.model(inputs, **kwargs))
+                        loss = self.loss_fn(pred_labels, labels)
+                    
+                    if self.SDF:
+                        loss_del = loss * 0.0
+                        loss = loss + loss_del * self.nabla_coef
+                
+                with record_function(f"Training step {i} Backward and Optimizer Step"):
+                    if self.mixed_precision:
+                        scaler.scale(loss).backward()
+                        scaler.step(self.optimizer)
+                        scaler.update()
+                    else:
+                        loss.backward()
+                        self.optimizer.step()
+
+        if self.DDP:
+            print(f'Rank: {self.rank}, World Size: {self.world_size}')
+        print(prof.key_averages().table(sort_by="cuda_memory_usage", row_limit=50))
+        prof.export_chrome_trace("trainer_profile_trace.json")

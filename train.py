@@ -24,6 +24,7 @@ parser.add_argument('--mixed_precision', action='store_true', help='Mixed precis
 parser.add_argument('--DDP', action='store_true', help='Distributed data parallel training. Default: False')
 parser.add_argument('--compile', action='store_true', help='Whether to compile the model before training. Recommended to set to true. Default: False')
 parser.add_argument('--supress_warnings', action='store_true', help='Supress warnings. Default: False')
+parser.add_argument('--profile', action='store_true', help='Profile the model. NOTE: This will do only 5 steps and no checkpointing. Purely for memory profiling. Default: False')
 
 # model arguments
 parser.add_argument('--BC_n_layers', type=int, default=4, help='number of layers in BC encoder. Default: 4')
@@ -98,6 +99,9 @@ trainer = Trainer(model,
 if trainer.is_main_process():
     print('Model Parameters:', sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-trainer.save_checkpoint(os.path.join(args.checkpoint_dir, f'checkpoint_epoch_{trainer.current_epoch}.pth'))
+if not args.profile:
+    trainer.save_checkpoint(os.path.join(args.checkpoint_dir, f'checkpoint_epoch_{trainer.current_epoch}.pth'))
 
-trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=args.epochs, checkpoint_dir=args.checkpoint_dir, checkpoint_interval=args.checkpoint_freq)             
+    trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=args.epochs, checkpoint_dir=args.checkpoint_dir, checkpoint_interval=args.checkpoint_freq)             
+else:
+    trainer.profile(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size)
