@@ -164,10 +164,20 @@ class Trainer:
             self.model.module.load_state_dict(checkpoint['model_state_dict'])
         else:
             self.model.load_state_dict(checkpoint['model_state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        try:
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        except:
+            if self.is_main_process():
+                print("Optimizer state dict not found in checkpoint or incompatible with current optimizer.")
+
         self.current_epoch = checkpoint['current_epoch']
-        if self.scheduler and 'scheduler_state_dict' in checkpoint:
-            self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+
+        try:
+            if self.scheduler and 'scheduler_state_dict' in checkpoint:
+                self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        except:
+            if self.is_main_process():
+                print("Scheduler state dict not found in checkpoint or incompatible with current scheduler.")
 
     def reset_optimizer(self):
         if self.optimizer == 'Adam':
