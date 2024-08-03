@@ -8,6 +8,7 @@ from tqdm import tqdm, trange
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
+from torch.profiler import profile, record_function, ProfilerActivity
 
 import os
 
