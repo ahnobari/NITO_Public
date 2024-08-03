@@ -9,7 +9,7 @@ from NITO.model import NITO
 from NITO.trainer import Trainer
 
 from torch.profiler import profile, record_function, ProfilerActivity
-
+import uuid
 # setup arguments
 parser = argparse.ArgumentParser(description='NITO Training Arguments')
 parser.add_argument('--data', type=str, default='./Data', help='path to data directory. Default: ./Data')
@@ -107,7 +107,20 @@ if not args.profile:
 
     trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=args.epochs, checkpoint_dir=args.checkpoint_dir, checkpoint_interval=args.checkpoint_freq)             
 else:
-    with profile(activities=[ProfilerActivity.CUDA], record_shapes=True, profile_memory=True) as prof:
-        trainer.profile(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size)
-    if self.DDP:
-        print(f'Rank {trainer.rank}:\n-------------------\n', prof.key_averages().table(sort_by="self_cuda_memory_usage", row_limit=None))
+    if trainer.DDP:
+        rank = trainer.rank
+        context = f'rank_{rank}'
+    else:
+        context = 'single_gpu'
+        
+    prof = torch.profiler.profile(
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(f'./log/Training_Profile_{uuid.uuid4()}_{context}'),
+        record_shapes=True,
+        with_stack=True,
+        profile_memory=True)
+    
+    prof.start()
+    trainer.profile(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size)
+    prof.stop()
+
+    prof.export_memory_timeline(f"mem_{context}.html")
