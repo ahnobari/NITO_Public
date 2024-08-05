@@ -7,7 +7,11 @@ __pycache__
 
 # data
 Data/*.npy
-Data/*/*.npy
+
+#ignore all subdirectories in data and all files in them
+Data/*/*
+Data/*/*/*
+
 Checkpoints/*
 *.out
 *.html

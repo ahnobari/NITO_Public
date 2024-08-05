@@ -13,6 +13,8 @@ import uuid
 # setup arguments
 parser = argparse.ArgumentParser(description='NITO Training Arguments')
 parser.add_argument('--data', type=str, default='./Data', help='path to data directory. Default: ./Data')
+parser.add_argument('--start_index', type=int, default=0, help='start index of data. Default: 0')
+parser.add_argument('--end_index', type=int, default=None, help='end index of data. Default: None')
 parser.add_argument('--checkpoint', type=str, default=None, help='path to checkpoint file to load. Default: None')
 parser.add_argument('--checkpoint_dir', type=str, default='./Checkpoints', help='path to checkpoint directory. Default: ./Checkpoints')
 parser.add_argument('--checkpoint_freq', type=int, default=5, help='checkpoint frequency (epochs). NOTE: every epoch will be checkpointed but they will be replaced evey epoch and only the checkpoints of this frequency will be kept. Default: 5')
@@ -71,7 +73,7 @@ else:
     consistent_batch = True
 
 # create dataset
-dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes/shapes.max(1,keepdims=True)], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
 
 # create model
 model = NITO(BCs = [4,4],
@@ -107,7 +109,8 @@ if trainer.is_main_process():
 if not args.profile:
     trainer.save_checkpoint(os.path.join(args.checkpoint_dir, f'checkpoint_epoch_{trainer.current_epoch}.pth'))
 
-    trainer.train(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size, epochs=args.epochs, checkpoint_dir=args.checkpoint_dir, checkpoint_interval=args.checkpoint_freq)             
+    end_idx = args.end_index if args.end_index is not None else len(dataset)
+    trainer.train(dataset.batch_load, np.arange(len(dataset))[args.start_index:end_idx], args.batch_size, epochs=args.epochs, checkpoint_dir=args.checkpoint_dir, checkpoint_interval=args.checkpoint_freq)
 else:
     if trainer.DDP:
         rank = trainer.rank
@@ -122,7 +125,7 @@ else:
         profile_memory=True)
     
     prof.start()
-    trainer.profile(dataset.batch_load, np.arange(len(dataset))[0:-5000], args.batch_size)
+    trainer.profile(dataset.batch_load, np.arange(len(dataset)), args.batch_size)
     prof.stop()
 
     prof.export_memory_timeline(f"mem_{context}.html")
