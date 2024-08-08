@@ -12,8 +12,9 @@ Data/*.npy
 Data/*/*
 Data/*/*/*
 
-Checkpoints/*
+Checkpoint*/*
 *.out
 *.html
 log/*
 /log
+*.log
