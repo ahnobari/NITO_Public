@@ -18,3 +18,5 @@ Checkpoint*/*
 log/*
 /log
 *.log
+
+Results/*

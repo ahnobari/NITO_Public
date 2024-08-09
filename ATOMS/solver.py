@@ -1193,7 +1193,7 @@ class Solver:
                 f"Compliance: {comp:.4e}, Change: {change:.4e}, Function Change: {change_f:.4e}, Residual: {solver_info[-1]:.4e}"
             )
 
-            if (i+1) % chk_steps == 0:
+            if (i+1) == chk_steps:
                 rho_chk = np.copy(rho)
 
         if save_comp_history:
