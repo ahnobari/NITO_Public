@@ -370,7 +370,3 @@ data = [
 
 print(f'Results Summary For {len(indecies)} Topologies :')
 print(tabulate.tabulate(data, headers=headers, tablefmt='fancy_grid'))
-# print('======================Summary======================')
-# print('Test Topologies Count:',len(topologies))
-# print('==================================================')
-

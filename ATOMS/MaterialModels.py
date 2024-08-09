@@ -83,7 +83,7 @@ class SingleMaterial(MaterialModel):
 
     def __ocP__(self, df, dg, rho, np=np):
 
-        ocP = rho * np.nan_to_num(np.sqrt(-df / dg.reshape(-1, 1)), nan=0)
+        ocP = rho * np.nan_to_num(np.sqrt(np.maximum(-df / dg.reshape(-1, 1),0)), nan=0)
 
         if np.abs(ocP).sum() == 0:
             ocP = np.ones_like(ocP) * 1e-3
