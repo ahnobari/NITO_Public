@@ -66,6 +66,8 @@ class NITO_Dataset:
             additional_idx = np.random.choice(samples_idx,pad_size,replace=True)
             
             samples_idx = np.concatenate([samples_idx,additional_idx])
+        elif mode == 'test_no_pad':
+            samples_idx = np.arange(poses.shape[0])
         else:
             if poses.shape[0] < self.n_samples:
                 samples_idx = np.random.choice(poses.shape[0],self.n_samples,replace=True)

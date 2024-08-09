@@ -30,7 +30,7 @@ parser.add_argument('--compile', action='store_true', help='Whether to compile t
 parser.add_argument('--supress_warnings', action='store_true', help='Supress warnings. Default: False')
 parser.add_argument('--profile', action='store_true', help='Profile the model. NOTE: This will do only 5 steps and no checkpointing. Purely for memory profiling. Default: False')
 parser.add_argument('--Optimizer', type=str, default='AdamW', help='Optimizer to use. Default: AdamW, Options: Adam, AdamW, SGD, Adam8, Adafactor')
-
+parser.add_argument('--shape_normalize', action='store_true', help='Normalize shapes. Default: False')
 # model arguments
 parser.add_argument('--BC_n_layers', type=int, default=4, help='number of layers in BC encoder. Default: 4')
 parser.add_argument('--BC_hidden_size', type=int, default=256, help='hidden size of BC encoder. Default: 256')
@@ -73,8 +73,11 @@ else:
     consistent_batch = True
 
 # create dataset
-dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes/shapes.max(1,keepdims=True)], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
-
+if args.shape_normalize:
+    dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes/shapes.max(1,keepdims=True)], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+else:
+    dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+    
 # create model
 model = NITO(BCs = [4,4],
             BC_n_layers = [args.BC_n_layers,args.BC_n_layers],
