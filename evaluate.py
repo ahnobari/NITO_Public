@@ -308,10 +308,10 @@ for i in range(len(indecies)):
     pred_1.append(results[i][3][1])
 
 if args.save_optimized:
-    np.save(os.path.join(args.results_dir,'optimized.npy'),pred_2, allow_pickle=True)
+    np.save(os.path.join(args.results_dir,'optimized.npy'),np.array(pred_2,dtype=object), allow_pickle=True)
 
 if args.save_intermediate:
-    np.save(os.path.join(args.results_dir,'intermediate.npy'),pred_1, allow_pickle=True)
+    np.save(os.path.join(args.results_dir,'intermediate.npy'),np.array(pred_1,dtype=object), allow_pickle=True)
 
 if args.save_compliances:
     np.save(os.path.join(args.results_dir,'compliances.npy'),compliances, allow_pickle=True)
