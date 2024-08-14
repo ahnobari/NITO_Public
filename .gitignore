@@ -19,4 +19,4 @@ log/*
 /log
 *.log
 
-Results/*
+Results*/*
