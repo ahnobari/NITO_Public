@@ -3,18 +3,19 @@ channels:
 - conda-forge
 - pytorch
 dependencies:
+- jupyter=1.0.0
+- scikit-sparse=0.4.12
+- trame=3.5.2
+- pip=24.0
+- libopenblas=0.3.24
+- imgaug=0.4.0
+- torchaudio=2.1.1
+- cupy=13.0.0
+- matplotlib=3.8.4
+- gdown=5.2.0
+- pyvista=0.43.3
 - torchvision=0.16.1
 - mpi4py=3.1.6
-- torchaudio=2.1.1
-- trame=3.5.2
-- jupyter=1.0.0
-- gradio=4.21.0
-- scikit-sparse=0.4.12
-- cupy=13.0.0
 - mapie=0.8.2
-- pip=24.0
-- matplotlib=3.8.4
-- imgaug=0.4.0
-- libopenblas=0.3.24
-- pyvista=0.43.3
 - libgomp=13.2.0
+
