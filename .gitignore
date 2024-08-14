@@ -12,11 +12,12 @@ Data/*.npy
 Data/*/*
 Data/*/*/*
 
-Checkpoint*/*
+Checkpoint/*.pth
+Checkpoint/*/*.pth
 *.out
 *.html
 log/*
 /log
 *.log
 
-Results*/*
+Results/*.npy

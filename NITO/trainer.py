@@ -215,7 +215,7 @@ class Trainer:
         
         os.makedirs(checkpoint_dir, exist_ok=True)
         
-        for epoch in range(epochs):
+        for epoch in range(epochs - self.current_epoch):
             if verbose and self.is_main_process():
                 prog = tqdm(range(steps_per_epoch))
             else:

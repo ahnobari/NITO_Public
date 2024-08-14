@@ -13,8 +13,6 @@ from .MaterialModels import SingleMaterial
 from .stiffness import auto_stiffness
 from .utils import kernels2D, kernels3D, kernels2D_nf, kernels3D_nf
 from .vis import plot_field, plot_mesh, plot_problem
-from cupychol import cuchol_solve
-
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +136,7 @@ class Solver:
         self.fun_tol = fun_tol
         self.reordering = reordering
 
-        if solver not in ["cholesky", "splu", "cg", "bicgstab", "gpu", "gpuchol"]:
+        if solver not in ["cholesky", "splu", "cg", "bicgstab", "gpu"]:
             raise Exception(
                 "Solver not supported, please choose from 'cholesky','splu','cg','gpu'"
             )
@@ -820,7 +818,7 @@ class Solver:
         return U, info, residual
 
     @staticmethod
-    def solve_gpu(K, F, max_iter=500, u0=None, tol=1e-4, solver="gpuchol", **kwargs):
+    def solve_gpu(K, F, max_iter=500, u0=None, tol=1e-4, **kwargs):
         """
         This function solves the linear system using conjugate gradient method on GPU.
 
@@ -833,30 +831,21 @@ class Solver:
             U (np.array): Displacement array.
             info (int): Convergence information.
         """
-        if solver == "gpu":
-            K_gpu = cp.sparse.csr_matrix(K)
-            F_gpu = cp.array(F)
+        K_gpu = cp.sparse.csr_matrix(K)
+        F_gpu = cp.array(F)
 
-            if u0 is not None:
-                u0_gpu = cp.array(u0)
-            else:
-                u0_gpu = None
-
-            U, info = cg_gpu(K_gpu, F_gpu, maxiter=max_iter, x0=u0_gpu, tol=tol)
-            residual = cp.linalg.norm(K_gpu.dot(U) - F_gpu)
-            
+        if u0 is not None:
+            u0_gpu = cp.array(u0)
         else:
-            K_gpu = cp.sparse.csr_matrix(K)
-            F_gpu = cp.array(F)
-            info = 0
-            U = cuchol_solve(K_gpu, F_gpu, reorder=False)
-            
-            residual = cp.linalg.norm(K_gpu.dot(U) - F_gpu)
+            u0_gpu = None
+
+        U, info = cg_gpu(K_gpu, F_gpu, maxiter=max_iter, x0=u0_gpu, tol=tol)
+        residual = cp.linalg.norm(K_gpu.dot(U) - F_gpu)
             
         return U.get(), info, residual.get()
 
     @staticmethod
-    def solve_gpu_(K, F, max_iter=500, u0=None, tol=1e-4, solver='gpuchol', **kwargs):
+    def solve_gpu_(K, F, max_iter=500, u0=None, tol=1e-4, **kwargs):
         """
         This function solves the linear system using conjugate gradient method on GPU.
 
@@ -869,14 +858,10 @@ class Solver:
             U (np.array): Displacement array.
             info (int): Convergence information.
         """
-        if solver == 'gpu':
-            U, info = cg_gpu(K, F, maxiter=max_iter, x0=u0, tol=tol)
-            residual = cp.linalg.norm(K.dot(U) - F)
-        else:
-            K = K.tocsr()
-            U = cuchol_solve(K, F, reorder=False)
-            info = 0
-            residual = cp.linalg.norm(K.dot(U) - F)
+
+        U, info = cg_gpu(K, F, maxiter=max_iter, x0=u0, tol=tol)
+        residual = cp.linalg.norm(K.dot(U) - F)
+
         return U, info, residual
 
     @staticmethod
