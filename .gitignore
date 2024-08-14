@@ -21,3 +21,4 @@ log/*
 *.log
 
 Results/*.npy
+Results/*/*.npy
