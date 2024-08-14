@@ -29,7 +29,7 @@ data_ids = {
 test_data_ids = {
     'topologies.npy': '1tFa2twksRnhc67XR47yQ-aeWnwZFfVe7',
     'boundary_conditions.npy': '1tXzECt2Gb2__lXVG799jc1hvWMTqWu2T',
-    'shapes.npy': '1tFa2twksRnhc67XR47yQ-aeWnwZFfVe7',
+    'shapes.npy': '1bY4SuHoWBJZ2iJRgvRSUdbJL20OTQ_RG',
     'loads.npy': '126ysGYKE9RynNM814QNzQK94knhEtm03',
     'vfs.npy': '1HlKcqpZ78gjVolEFUrwQVJW1vQRdOS88'
 }
@@ -53,5 +53,7 @@ if args.data:
 
 if args.checkpoints:
     for file in checkpoint_ids.keys():
+        if not os.path.exists(os.path.join(args.checkpoint_dir, file)):
+            os.makedirs(os.path.join(args.checkpoint_dir, file))
         gdown.download(id=checkpoint_ids[file], output=os.path.join(args.checkpoint_dir, file, 'checkpoint_epoch_50.pth'))
     

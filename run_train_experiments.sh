@@ -12,7 +12,7 @@ python train.py \
        --samples 1024 \
        --epochs 50 \
        --data ./Data \
-       --checkpoint_dir ./Checpoints/64x64 \
+       --checkpoint_dir ./Checkpoints/64x64 \
        --start_index 0 --end_index 47000
 
 # Train NITO on 256x256 Data
@@ -28,7 +28,7 @@ python train.py \
        --samples 1024 \
        --epochs 50 \
        --data ./Data \
-       --checkpoint_dir ./Checpoints/256x256 \
+       --checkpoint_dir ./Checkpoints/256x256 \
        --start_index 47000 --end_index 107000
 
 # Train NITO on 64x64 and 256x256 Data
@@ -44,7 +44,7 @@ python train.py \
        --samples 1024 \
        --epochs 50 \
        --data ./Data \
-       --checkpoint_dir ./Checpoints/64x64_256x256 \
+       --checkpoint_dir ./Checkpoints/64x64_256x256 \
        --start_index 0 --end_index 107000
 
 # Train NITO on All Data
@@ -60,5 +60,5 @@ python train.py \
        --samples 1024 \
        --epochs 50 \
        --data ./Data \
-       --checkpoint_dir ./Checpoints/All
+       --checkpoint_dir ./Checkpoints/All
 

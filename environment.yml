@@ -2,20 +2,28 @@ name: NITO
 channels:
 - conda-forge
 - pytorch
+- nvidia
 dependencies:
+- python=3.10
+- pytorch-cuda=12.4
+- pytorch=2.1.1
+- torchvision=0.16.1
+- torchaudio=2.1.1
 - jupyter=1.0.0
 - scikit-sparse=0.4.12
 - trame=3.5.2
 - pip=24.0
 - libopenblas=0.3.24
 - imgaug=0.4.0
-- torchaudio=2.1.1
 - cupy=13.0.0
 - matplotlib=3.8.4
 - gdown=5.2.0
 - pyvista=0.43.3
-- torchvision=0.16.1
 - mpi4py=3.1.6
 - mapie=0.8.2
 - libgomp=13.2.0
 
+- pip:
+  - bitsandbytes
+  - torch_optimizer
+  - torchtriton --extra-index-url "https://download.pytorch.org/whl/nightly/cu124"
