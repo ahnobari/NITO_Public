@@ -1,6 +1,6 @@
 # NITO: Neural Implicit Fields for Resolution-free and Domain-Adaptable Topology Optimization
 This repo serves as the official code base for NITO.
-
+![NITO_2](https://github.com/user-attachments/assets/c82fe4df-9f54-481d-a165-87192249ac83)
 In this repo we include the code used to perform the experiments on NITO. Below is a detailed explaniation of the code provided.
 
 # Data & Checkpoints
