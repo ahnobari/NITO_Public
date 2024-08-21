@@ -100,8 +100,8 @@ class Trainer:
             self.loss_fn = nn.MSELoss()
             self.activation = nn.Identity()
         elif self.Multi_Class:
-            self.loss_fn = nn.CrossEntropyLoss()
-            self.activation = nn.Softmax(dim=1)
+            self.loss_fn = nn.BCEWithLogitsLoss()
+            self.activation = nn.Identity()
         else:
             self.loss_fn = nn.BCEWithLogitsLoss()
             self.activation = nn.Identity()

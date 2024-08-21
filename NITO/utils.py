@@ -55,9 +55,13 @@ class NITO_Dataset:
         
         for i in range(self.n_C):
             C.append(self.Cs[i][idx])
-    
-        poses = np.meshgrid(np.arange(shape[1]),np.arange(shape[0]))
-        poses = np.concatenate([poses[1].reshape(-1,1),poses[0].reshape(-1,1)],axis=1)
+
+        if len(shape) == 2:
+            poses = np.meshgrid(np.arange(shape[1]),np.arange(shape[0]))
+            poses = np.concatenate([poses[1].reshape(-1,1),poses[0].reshape(-1,1)],axis=1)
+        elif len(shape) == 3:
+            poses = np.meshgrid(np.arange(shape[1]),np.arange(shape[0]),np.arange(shape[2]))
+            poses = np.concatenate([poses[1].reshape(-1,1),poses[0].reshape(-1,1),poses[2].reshape(-1,1)],axis=1)
         
         if mode == 'test':
             samples_idx = np.arange(poses.shape[0])
@@ -146,7 +150,7 @@ class NITO_Dataset:
                 BCs_batch[i] = torch.tensor(BCs_batch[i]).long().to(device)
         
         for i in range(self.n_BC):
-            BCs[i] = np.concatenate(BCs[i],0)
+            BCs[i] = np.concatenate(BCs[i],0).astype(float)
             BCs[i] = torch.tensor(BCs[i]).float().to(device)
             
             if self.consistent_batch:

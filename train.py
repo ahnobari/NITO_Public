@@ -13,6 +13,7 @@ import uuid
 # setup arguments
 parser = argparse.ArgumentParser(description='NITO Training Arguments')
 parser.add_argument('--data', type=str, default='./Data', help='path to data directory. Default: ./Data')
+parser.add_argument('--multi_material', action='store_true', help='Pass if multi-material dataset. Default: False')
 parser.add_argument('--start_index', type=int, default=0, help='start index of data. Default: 0')
 parser.add_argument('--end_index', type=int, default=None, help='end index of data. Default: None')
 parser.add_argument('--checkpoint', type=str, default=None, help='path to checkpoint file to load. Default: None')
@@ -67,31 +68,52 @@ loads = np.load(os.path.join(args.data, 'loads.npy'), allow_pickle=True)
 vfs = np.load(os.path.join(args.data, 'vfs.npy'), allow_pickle=True)
 BCs = np.load(os.path.join(args.data, 'boundary_conditions.npy'), allow_pickle=True)
 
+dim = shapes.shape[1]
+
+if args.multi_material:
+    Es = np.load(os.path.join(args.data, 'Es.npy'), allow_pickle=True)
+    n_materials = Es.shape[1]
+else:
+    n_materials = 1
+
 if (args.DDP and args.multi_gpu) or not args.multi_gpu:
     consistent_batch = False
 else:
     consistent_batch = True
 
 # create dataset
-if args.shape_normalize:
-    dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes/shapes.max(1,keepdims=True)], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+if args.multi_material:
+    if args.shape_normalize:
+        dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes/shapes.max(1,keepdims=True), Es], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+    else:
+        dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes, Es], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+    BC_shape = [dim*2, dim*2]
+    C_shape = [n_materials, dim, n_materials]
+
 else:
-    dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
-    
+    if args.shape_normalize:
+        dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes/shapes.max(1,keepdims=True)], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+    else:
+        dataset = NITO_Dataset(topologies, [BCs, loads], [vfs, shapes], shapes, n_samples=args.samples, consistent_batch=consistent_batch)
+    BC_shape = [dim*2, dim*2]
+    C_shape = [1, dim]
+
 # create model
-model = NITO(BCs = [4,4],
-            BC_n_layers = [args.BC_n_layers,args.BC_n_layers],
-            BC_hidden_size = [args.BC_hidden_size,args.BC_hidden_size], 
-            BC_emb_size=[args.BC_emb_size,args.BC_emb_size], 
-            Cs = [1,2],
-            C_n_layers = [args.C_n_layers,args.C_n_layers],
-            C_hidden_size = [args.C_hidden_size,args.C_hidden_size],
-            C_mapping_size = [args.C_mapping_size,args.C_mapping_size],
+model = NITO(BCs = BC_shape,
+            BC_n_layers = [args.BC_n_layers]*len(BC_shape),
+            BC_hidden_size = [args.BC_hidden_size]*len(BC_shape), 
+            BC_emb_size=[args.BC_emb_size]*len(BC_shape), 
+            Cs = C_shape,
+            C_n_layers = [args.C_n_layers]*len(C_shape),
+            C_hidden_size = [args.C_hidden_size]*len(C_shape),
+            C_mapping_size = [args.C_mapping_size]*len(C_shape),
             Field_n_layers=args.Field_n_layers, 
             Field_hidden_size=args.Field_hidden_size, 
             Fourier_size=args.Fourier_size, 
             omega = args.omega,
-            freq_scale= args.freq_scale)
+            freq_scale= args.freq_scale,
+            input_channels=dim,
+            output_channels=n_materials)
 
 # create trainer
 trainer = Trainer(model,
@@ -103,7 +125,8 @@ trainer = Trainer(model,
                 checkpoint_path=args.checkpoint,
                 Compile=args.compile,
                 enable_profiling=args.profile,
-                optimizer=args.Optimizer)
+                optimizer=args.Optimizer,
+                Multi_Class=args.multi_material)
 
 # parameter count
 if trainer.is_main_process():
