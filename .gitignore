@@ -22,3 +22,5 @@ log/*
 
 Results/*.npy
 Results/*/*.npy
+
+*.mp4
