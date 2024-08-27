@@ -1048,8 +1048,8 @@ class Solver:
         """
 
         if self.compute_engine == "gpu":
-            return self.optimize_gpu(
-                save_comp_history, save_change_history, save_rho_history
+            return self.fs_optimize_gpu(
+                rho, n_step, chk_steps, save_comp_history, save_change_history, save_rho_history
             )
 
         flag = False
@@ -1191,8 +1191,8 @@ class Solver:
         return rho, rho_chk, hist
 
     def optimize(
-        self, save_comp_history=False, save_change_history=False, save_rho_history=False
-    ):
+        self, save_comp_history=False, save_change_history=False, save_rho_history=False, rho_init=None
+        ):
         """
         This function performs the topology optimization.
 
@@ -1203,11 +1203,11 @@ class Solver:
 
         if self.compute_engine == "gpu":
             return self.optimize_gpu(
-                save_comp_history, save_change_history, save_rho_history
+                save_comp_history, save_change_history, save_rho_history, rho_init
             )
 
         flag = False
-
+        
         rho = np.ones([len(self.elements)])
 
         if self.reordering:
@@ -1240,7 +1240,10 @@ class Solver:
         fun_change = np.inf
         change = np.inf
 
-        rho = self.material_model.init_desvars(len(self.elements))
+        if rho_init is None:
+            rho = self.material_model.init_desvars(len(self.elements))
+        else:
+            rho = self.material_model(rho, 0, plain=True)
 
         # Initial Solve
         comp, df, U, solver_info = self.system_solve(
@@ -1350,7 +1353,7 @@ class Solver:
         return rho, flag, hist
 
     def optimize_gpu(
-        self, save_comp_history=False, save_change_history=False, save_rho_history=False
+        self, save_comp_history=False, save_change_history=False, save_rho_history=False, rho_init=None
     ):
 
         flag = False
@@ -1381,7 +1384,10 @@ class Solver:
         fun_change = cp.inf
         change = cp.inf
 
-        rho = self.material_model.init_desvars(len(self.elements))
+        if rho_init is None:
+            rho = self.material_model.init_desvars(len(self.elements))
+        else:
+            rho = rho_init
 
         # Move to GPU
         rho = cp.array(rho)
@@ -1542,3 +1548,148 @@ class Solver:
         cp._default_memory_pool.free_all_blocks()
 
         return rho.get(), flag, hist
+
+    def fs_optimize_gpu(
+        self, rho, n_step = 10, chk_steps = 5, save_comp_history=False, save_change_history=False, save_rho_history=False
+    ):
+        """
+        This function performs the topology optimization.
+
+        Returns:
+            rho (np.array): Optimized Density array.
+            flag (bool): Flag indicating if the optimization converged.
+        """
+
+        flag = False
+
+        if self.reordering:
+            ordr, inv_order = self.compute_ordering(
+                np.ones(len(self.elements)),
+                self.K_kernel,
+                self.k_map,
+                self.non_constrained_map,
+            )
+            ordr = cp.array(ordr)
+            inv_order = cp.array(inv_order)
+        else:
+            ordr = None
+            inv_order = None
+
+        def solver_fn(K, F, max_iter=500, u0=None, tol=1e-4, **kwargs):
+            return self.solve_gpu_(K, F, max_iter, u0, tol, solver=self.solver, **kwargs)
+
+        prog = trange(n_step, disable=logger.getEffectiveLevel() > logging.INFO)
+
+        fun_change = cp.inf
+        change = cp.inf
+
+        # Move to GPU
+        rho = cp.array(rho)
+        dG = cp.array(self.dG)
+        dK = cp.sparse.csr_matrix(self.dK)
+        F = cp.array(self.F)
+        K_kernel = cp.sparse.csr_matrix(self.K_kernel)
+        k_map = cp.array(self.k_map)
+        grad_map = cp.array(self.grad_map)
+        non_constrained_map = cp.array(self.non_constrained_map)
+        filter_kernel = cp.sparse.csr_matrix(self.filter_kernel)
+
+        # Initial Solve
+        comp, df, U, solver_info = self.system_solve(
+            rho,
+            self.material_model,
+            K_kernel,
+            k_map,
+            F,
+            dK,
+            grad_map,
+            non_constrained_map,
+            filter_kernel,
+            solver_fn,
+            0,
+            np=cp,
+            coo_matrix=cp.sparse.coo_matrix,
+            mb_order=ordr,
+            inv_order=inv_order,
+            max_iter=self.solver_max_iter,
+            tol=self.solve_tol,
+        )
+        if self.reordering:
+            u0 = U[ordr]
+        else:
+            u0 = U
+
+        if save_comp_history:
+            comp_history = []
+
+        if save_change_history:
+            change_history = []
+
+        if save_rho_history:
+            rho_history = []
+
+        hist = {}
+
+        for i in prog:
+
+            rho_old = cp.copy(rho)
+            comp_old = cp.copy(comp)
+
+            rho = self.update_design(rho, df, dG, self.material_model, self.move, np=cp)
+
+            comp, df, U, solver_info = self.system_solve(
+                rho,
+                self.material_model,
+                K_kernel,
+                k_map,
+                F,
+                dK,
+                grad_map,
+                non_constrained_map,
+                filter_kernel,
+                solver_fn,
+                i,
+                np=cp,
+                coo_matrix=cp.sparse.coo_matrix,
+                mb_order=ordr,
+                inv_order=inv_order,
+                max_iter=self.solver_max_iter,
+                u0=u0,
+                tol=self.solve_tol,
+            )
+            
+            if self.reordering:
+                u0 = U[ordr]
+            else:
+                u0 = U
+
+            change = cp.linalg.norm(rho - rho_old) / cp.sqrt(len(self.elements))
+            change_f = cp.abs(comp - comp_old) / comp
+
+            if save_change_history:
+                change_history.append(change.get())
+
+            if save_rho_history:
+                rho_history.append(rho.get())
+
+            if save_comp_history:
+                comp_history.append(comp.get())
+
+            prog.set_postfix_str(
+                f"Compliance: {comp:.4e}, Change: {change:.4e}, Function Change: {change_f:.4e}, Residual: {solver_info[-1]:.4e}"
+            )
+
+            if (i+1) == chk_steps:
+                rho_chk = np.copy(rho.get())
+
+        if save_comp_history:
+            hist["comp_history"] = comp_history
+        if save_change_history:
+            hist["change_history"] = change_history
+        if save_rho_history:
+            hist["rho_history"] = rho_history
+
+        del dG, dK, F, K_kernel, k_map, grad_map, non_constrained_map, filter_kernel
+        cp._default_memory_pool.free_all_blocks()
+
+        return rho.get(), rho_chk, hist
