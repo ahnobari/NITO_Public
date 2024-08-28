@@ -26,6 +26,8 @@ Note: Since `download.py` uses `gdown` to download files, google drive may limit
 
 [Data & Checkpoints](https://drive.google.com/drive/folders/1_wKPq8HXjaoRa4oCy_tvLOopIcapk7wO?usp=sharing)
 
+[3D Data](https://drive.google.com/drive/folders/1uK_X3-FcCWY9LiiXkVQDI69q0t6Vosgm)
+
 # Replicating Experiments
 The raw code for NITO model is provided in the NITO module in `/NITO` folder. The code for training and evaluation is provided in the `train.py` and `evaluate.py` files respectively, which have arguments that can be found with more details by running `--help` flag. The code for our optimized SIMP optimizer is provided in the ATOMS module in `/ATOMS` folder. Most of this code well commented and self explanatory but the `evaluate.py` file includes code to run this optimizer which maybe helpful to understand the code.
 
